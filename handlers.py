@@ -449,9 +449,60 @@ async def back_to_main_menu(
 # =====================================================
 
 @router.callback_query(F.data == "cancel")
-async def cancel_handler(
-    callback: CallbackQuery,
-    state: FSMContext
-):
+async def cancel_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    await state.clear()
 
-    await callback.answer()
+    # Form শুরু করার সময় 저장 করা menu callback
+    return_to = data.get("cancel_return_to", "main_menu")
+    message = callback.message
+
+    await callback.answer("❌ Form cancelled")
+
+    if return_to == "promote_telegram":
+        text = "📣 **Promote Your Channel / Group / Bot**\n\nChoose promotion type:"
+        from keyboards import promote_telegram_kb
+        keyboard = promote_telegram_kb()
+
+    elif return_to == "promote_app":
+        text = "📱 **Promote Your App**\n\nChoose app promotion type:"
+        from keyboards import promote_app_kb
+        keyboard = promote_app_kb()
+
+    elif return_to == "create_bot":
+        text = "🤖 **Create Your Telegram Bot**\n\nChoose bot type:"
+        from keyboards import back_home_kb
+        keyboard = back_home_kb()
+
+    elif return_to == "admin_apps":
+        text = "📱 **Manage Apps**"
+        from keyboards import admin_main_kb
+        keyboard = admin_main_kb()
+
+    elif return_to == "admin_loots":
+        text = "🎁 **Manage Loots**"
+        from keyboards import admin_main_kb
+        keyboard = admin_main_kb()
+
+    elif return_to == "admin_news":
+        text = "📰 **Manage News**"
+        from keyboards import admin_main_kb
+        keyboard = admin_main_kb()
+
+    else:
+        from keyboards import main_menu_kb
+        text = "🏠 **Main Menu**"
+        keyboard = main_menu_kb()
+
+    try:
+        await message.edit_text(
+            text,
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    except Exception:
+        await callback.message.answer(
+            text,
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
