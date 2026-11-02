@@ -417,6 +417,34 @@ async def admin_panel(message: Message):
 
 
 # =====================================================
+# =====================================================
+# BACK BUTTON - RETURN TO MAIN MENU
+# =====================================================
+
+@router.callback_query(F.data == "back")
+async def back_to_main_menu(
+    callback: CallbackQuery,
+    state: FSMContext
+):
+    try:
+        await callback.answer()
+    except Exception:
+        pass
+
+    await state.clear()
+
+    await callback.message.edit_text(
+        f"🏠 <b>Main Menu</b>\n\n"
+        f"Welcome to {html.escape(BOT_NAME)}!\n"
+        "Please select an option:",
+        reply_markup=main_menu_kb(),
+        parse_mode="HTML"
+    )
+
+
+# =====================================================
+# CANCEL
+# =====================================================
 # CANCEL
 # =====================================================
 
