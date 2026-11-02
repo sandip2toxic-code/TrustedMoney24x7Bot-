@@ -12,6 +12,7 @@ from promote_handlers import router as promote_router
 from app_promote_handlers import router as app_promote_router
 from create_bot_handlers import router as create_bot_router
 from content_handlers import router as content_router
+from admin_handlers import router as admin_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ async def main():
     dp.include_router(app_promote_router)
     dp.include_router(create_bot_router)
     dp.include_router(content_router)
+    dp.include_router(admin_router)
 
     logger.info("Bot is starting...")
     await dp.start_polling(bot)
