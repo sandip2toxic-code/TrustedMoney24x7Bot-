@@ -1,3 +1,4 @@
+
 from aiogram.fsm.state import State, StatesGroup
 
 
@@ -78,3 +79,22 @@ class AdminAddNews(StatesGroup):
     app_name = State()
     source = State()
     confirm = State()
+
+
+# Edit App
+class AdminEditApp(StatesGroup):
+    select_field = State()
+    value = State()
+
+
+# Edit Loot
+class AdminEditLoot(StatesGroup):
+    select_field = State()
+    value = State()
+
+
+# Edit News
+class AdminEditNews(StatesGroup):
+    select_field = State()
+    value = State()
+    
