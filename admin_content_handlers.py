@@ -654,7 +654,7 @@ async def app_earning_method(message: Message, state: FSMContext):
         "Enter Minimum Withdrawal or type None:",
         reply_markup=cancel_kb()
     )
-    @router.message(AdminAddApp.min_withdrawal)
+@router.message(AdminAddApp.min_withdrawal)
 async def app_min_withdrawal(message: Message, state: FSMContext):
     if not is_owner(message.from_user.id):
         return
@@ -743,7 +743,7 @@ async def save_new_app(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.edit_text(
         "App added successfully.",
-        reply_markup=back_button("manage_apps")
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[back_button("list_apps")])
     )
     await callback.answer("Saved")
     # =========================
