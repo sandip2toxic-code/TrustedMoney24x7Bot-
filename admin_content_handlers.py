@@ -2,6 +2,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
+from sqlalchemy import select
 
 from config import OWNER_ID
 from states import AdminAddApp, AdminAddLoot, AdminAddNews
@@ -15,7 +16,6 @@ def is_owner(user_id: int) -> bool:
     return user_id == OWNER_ID
 
 
-# ====================== MENUS ======================
 @router.callback_query(F.data == "admin_apps")
 async def admin_apps_menu(callback: CallbackQuery):
     if not is_owner(callback.from_user.id):
@@ -23,10 +23,11 @@ async def admin_apps_menu(callback: CallbackQuery):
         return
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="➕ Add New App", callback_data="add_app")],
+        [InlineKeyboardButton(text="🗑 View / Delete Apps", callback_data="list_apps")],
         [InlineKeyboardButton(text="🔙 Back", callback_data="admin_dashboard")],
     ])
     await callback.message.edit_text(
-        "📱 <b>Manage Apps</b>\n\nAdd a verified earning app listing.",
+        "📱 <b>Manage Apps</b>\n\nAdd a listing, or open the list to delete one.",
         reply_markup=kb,
         parse_mode="HTML",
     )
@@ -40,10 +41,11 @@ async def admin_loots_menu(callback: CallbackQuery):
         return
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="➕ Add New Loot", callback_data="add_loot")],
+        [InlineKeyboardButton(text="🗑 View / Delete Loots", callback_data="list_loots")],
         [InlineKeyboardButton(text="🔙 Back", callback_data="admin_dashboard")],
     ])
     await callback.message.edit_text(
-        "🎁 <b>Manage Loots</b>\n\nAdd a verified free loot or reward offer.",
+        "🎁 <b>Manage Loots</b>\n\nAdd an offer, or open the list to delete one.",
         reply_markup=kb,
         parse_mode="HTML",
     )
@@ -57,17 +59,137 @@ async def admin_news_menu(callback: CallbackQuery):
         return
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="➕ Add News", callback_data="add_news")],
+        [InlineKeyboardButton(text="🗑 View / Delete News", callback_data="list_news")],
         [InlineKeyboardButton(text="🔙 Back", callback_data="admin_dashboard")],
     ])
     await callback.message.edit_text(
-        "📰 <b>Manage News</b>\n\nAdd app launch news or a warning.",
+        "📰 <b>Manage News</b>\n\nPublish news, or open the list to delete one.",
         reply_markup=kb,
         parse_mode="HTML",
     )
     await callback.answer()
 
 
-# ====================== ADD APP ======================
+@router.callback_query(F.data == "list_apps")
+async def list_apps(callback: CallbackQuery):
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Access denied", show_alert=True)
+        return
+    async with async_session() as session:
+        result = await session.execute(select(AppListing).order_by(AppListing.id.desc()).limit(20))
+        apps = result.scalars().all()
+    if not apps:
+        await callback.answer("No apps yet", show_alert=True)
+        return
+    buttons = [
+        [InlineKeyboardButton(text=f"🗑 {app.name}", callback_data=f"delapp:{app.id}")]
+        for app in apps
+    ]
+    buttons.append([InlineKeyboardButton(text="🔙 Back", callback_data="admin_apps")])
+    await callback.message.edit_text(
+        "🗑 <b>Tap an app to delete it.</b>",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("delapp:"))
+async def delete_app(callback: CallbackQuery):
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Access denied", show_alert=True)
+        return
+    app_id = int(callback.data.split(":")[1])
+    async with async_session() as session:
+        result = await session.execute(select(AppListing).where(AppListing.id == app_id))
+        app = result.scalar_one_or_none()
+        if app:
+            await session.delete(app)
+            await session.commit()
+    await callback.answer("App deleted")
+    await list_apps(callback)
+
+
+@router.callback_query(F.data == "list_loots")
+async def list_loots(callback: CallbackQuery):
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Access denied", show_alert=True)
+        return
+    async with async_session() as session:
+        result = await session.execute(select(Loot).order_by(Loot.id.desc()).limit(20))
+        loots = result.scalars().all()
+    if not loots:
+        await callback.answer("No loots yet", show_alert=True)
+        return
+    buttons = [
+        [InlineKeyboardButton(text=f"🗑 {loot.title[:40]}", callback_data=f"delloot:{loot.id}")]
+        for loot in loots
+    ]
+    buttons.append([InlineKeyboardButton(text="🔙 Back", callback_data="admin_loots")])
+    await callback.message.edit_text(
+        "🗑 <b>Tap a loot to delete it.</b>",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("delloot:"))
+async def delete_loot(callback: CallbackQuery):
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Access denied", show_alert=True)
+        return
+    loot_id = int(callback.data.split(":")[1])
+    async with async_session() as session:
+        result = await session.execute(select(Loot).where(Loot.id == loot_id))
+        loot = result.scalar_one_or_none()
+        if loot:
+            await session.delete(loot)
+            await session.commit()
+    await callback.answer("Loot deleted")
+    await list_loots(callback)
+
+
+@router.callback_query(F.data == "list_news")
+async def list_news(callback: CallbackQuery):
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Access denied", show_alert=True)
+        return
+    async with async_session() as session:
+        result = await session.execute(select(News).order_by(News.id.desc()).limit(20))
+        items = result.scalars().all()
+    if not items:
+        await callback.answer("No news yet", show_alert=True)
+        return
+    buttons = [
+        [InlineKeyboardButton(text=f"🗑 {item.title[:40]}", callback_data=f"delnews:{item.id}")]
+        for item in items
+    ]
+    buttons.append([InlineKeyboardButton(text="🔙 Back", callback_data="admin_news")])
+    await callback.message.edit_text(
+        "🗑 <b>Tap a news item to delete it.</b>",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("delnews:"))
+async def delete_news(callback: CallbackQuery):
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Access denied", show_alert=True)
+        return
+    news_id = int(callback.data.split(":")[1])
+    async with async_session() as session:
+        result = await session.execute(select(News).where(News.id == news_id))
+        item = result.scalar_one_or_none()
+        if item:
+            await session.delete(item)
+            await session.commit()
+    await callback.answer("News deleted")
+    await list_news(callback)
+
+
 @router.callback_query(F.data == "add_app")
 async def add_app_start(callback: CallbackQuery, state: FSMContext):
     if not is_owner(callback.from_user.id):
@@ -88,11 +210,7 @@ async def add_app_name(message: Message, state: FSMContext):
         return
     await state.update_data(name=message.text.strip())
     await state.set_state(AdminAddApp.logo)
-    await message.answer(
-        "🖼 Send the <b>App Logo</b> as a photo, or type <b>Skip</b>:",
-        reply_markup=cancel_kb(),
-        parse_mode="HTML",
-    )
+    await message.answer("🖼 Send the <b>App Logo</b> as a photo, or type <b>Skip</b>:", reply_markup=cancel_kb(), parse_mode="HTML")
 
 
 @router.message(AdminAddApp.logo)
@@ -104,11 +222,7 @@ async def add_app_logo(message: Message, state: FSMContext):
     else:
         await state.update_data(logo=None)
     await state.set_state(AdminAddApp.category)
-    await message.answer(
-        "📂 <b>Category</b> (Example: Reward, Task, Referral):",
-        reply_markup=cancel_kb(),
-        parse_mode="HTML",
-    )
+    await message.answer("📂 <b>Category</b> (Example: Reward, Task, Referral):", reply_markup=cancel_kb(), parse_mode="HTML")
 
 
 @router.message(AdminAddApp.category)
@@ -153,11 +267,7 @@ async def add_app_features(message: Message, state: FSMContext):
         return
     await state.update_data(features=message.text.strip())
     await state.set_state(AdminAddApp.platform)
-    await message.answer(
-        "📲 <b>Platform</b> (Android / iOS / Web):",
-        reply_markup=cancel_kb(),
-        parse_mode="HTML",
-    )
+    await message.answer("📲 <b>Platform</b> (Android / iOS / Web):", reply_markup=cancel_kb(), parse_mode="HTML")
 
 
 @router.message(AdminAddApp.platform)
@@ -236,25 +346,20 @@ async def save_app(callback: CallbackQuery, state: FSMContext):
         await session.commit()
     await state.clear()
     await callback.message.edit_text(
-        "✅ <b>App listing saved.</b>\nUsers can now see it under Latest Earning Apps.",
+        "✅ <b>App listing saved.</b>",
         reply_markup=admin_main_kb(),
         parse_mode="HTML",
     )
     await callback.answer()
 
 
-# ====================== ADD LOOT ======================
 @router.callback_query(F.data == "add_loot")
 async def add_loot_start(callback: CallbackQuery, state: FSMContext):
     if not is_owner(callback.from_user.id):
         await callback.answer("Access denied", show_alert=True)
         return
     await state.set_state(AdminAddLoot.title)
-    await callback.message.edit_text(
-        "🎁 Enter the <b>Offer Title</b>:",
-        reply_markup=cancel_kb(),
-        parse_mode="HTML",
-    )
+    await callback.message.edit_text("🎁 Enter the <b>Offer Title</b>:", reply_markup=cancel_kb(), parse_mode="HTML")
     await callback.answer()
 
 
@@ -354,26 +459,17 @@ async def save_loot(callback: CallbackQuery, state: FSMContext):
         ))
         await session.commit()
     await state.clear()
-    await callback.message.edit_text(
-        "✅ <b>Loot saved.</b>\nUsers can now see it under Free Loots & Rewards.",
-        reply_markup=admin_main_kb(),
-        parse_mode="HTML",
-    )
+    await callback.message.edit_text("✅ <b>Loot saved.</b>", reply_markup=admin_main_kb(), parse_mode="HTML")
     await callback.answer()
 
 
-# ====================== ADD NEWS ======================
 @router.callback_query(F.data == "add_news")
 async def add_news_start(callback: CallbackQuery, state: FSMContext):
     if not is_owner(callback.from_user.id):
         await callback.answer("Access denied", show_alert=True)
         return
     await state.set_state(AdminAddNews.title)
-    await callback.message.edit_text(
-        "📰 Enter the <b>News Title</b>:",
-        reply_markup=cancel_kb(),
-        parse_mode="HTML",
-    )
+    await callback.message.edit_text("📰 Enter the <b>News Title</b>:", reply_markup=cancel_kb(), parse_mode="HTML")
     await callback.answer()
 
 
@@ -392,11 +488,7 @@ async def news_content(message: Message, state: FSMContext):
         return
     await state.update_data(content=message.text.strip())
     await state.set_state(AdminAddNews.category)
-    await message.answer(
-        "📂 <b>Category</b> (launch / warning / update / withdrawal):",
-        reply_markup=cancel_kb(),
-        parse_mode="HTML",
-    )
+    await message.answer("📂 <b>Category</b> (launch / warning / update / withdrawal):", reply_markup=cancel_kb(), parse_mode="HTML")
 
 
 @router.message(AdminAddNews.category)
@@ -455,9 +547,5 @@ async def save_news(callback: CallbackQuery, state: FSMContext):
         ))
         await session.commit()
     await state.clear()
-    await callback.message.edit_text(
-        "✅ <b>News published.</b>\nUsers can see it under App News & Launches.",
-        reply_markup=admin_main_kb(),
-        parse_mode="HTML",
-    )
+    await callback.message.edit_text("✅ <b>News published.</b>", reply_markup=admin_main_kb(), parse_mode="HTML")
     await callback.answer()
