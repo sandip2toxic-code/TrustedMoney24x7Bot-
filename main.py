@@ -7,7 +7,8 @@ from aiogram.enums import ParseMode
 
 from config import BOT_TOKEN
 from database import init_db
-from handlers import router
+from handlers import router as main_router
+from promote_handlers import router as promote_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,8 +31,9 @@ async def main():
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
-    # Register Router
-    dp.include_router(router)
+    # Register Routers
+    dp.include_router(main_router)
+    dp.include_router(promote_router)
 
     logger.info("Bot is starting...")
     await dp.start_polling(bot)
