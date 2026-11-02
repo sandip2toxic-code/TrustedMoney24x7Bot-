@@ -13,6 +13,7 @@ from app_promote_handlers import router as app_promote_router
 from create_bot_handlers import router as create_bot_router
 from content_handlers import router as content_router
 from admin_handlers import router as admin_router
+from admin_content_handlers import router as admin_content_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,13 +34,13 @@ async def main():
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
-    # Register all routers
     dp.include_router(main_router)
     dp.include_router(promote_router)
     dp.include_router(app_promote_router)
     dp.include_router(create_bot_router)
     dp.include_router(content_router)
     dp.include_router(admin_router)
+    dp.include_router(admin_content_router)
 
     logger.info("Bot is starting...")
     await dp.start_polling(bot)
