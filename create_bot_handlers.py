@@ -59,6 +59,7 @@ async def start_bot_form(callback: CallbackQuery, state: FSMContext):
     bot_type = type_map.get(callback.data, "Custom Telegram Bot")
 
     await state.update_data(bot_type=bot_type)
+    await state.update_data(cancel_return_to="create_bot")
     await state.set_state(CreateBot.name)
 
     await callback.message.edit_text(
