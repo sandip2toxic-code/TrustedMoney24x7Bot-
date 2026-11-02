@@ -29,6 +29,7 @@ async def start_promo_form(callback: CallbackQuery, state: FSMContext):
     promo_type = promo_map.get(callback.data)
 
     await state.update_data(promo_type=promo_type)
+    await state.update_data(cancel_return_to="promote_telegram")
     await state.set_state(PromoteTelegram.name)
 
     await callback.message.edit_text(
