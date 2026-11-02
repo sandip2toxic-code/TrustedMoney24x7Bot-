@@ -43,3 +43,38 @@ class CreateBot(StatesGroup):
     additional = State()
     contact = State()
     confirm = State()
+
+
+class AdminAddApp(StatesGroup):
+    name = State()
+    logo = State()
+    category = State()
+    download_link = State()
+    website = State()
+    description = State()
+    features = State()
+    platform = State()
+    earning_method = State()
+    min_withdrawal = State()
+    countries = State()
+    confirm = State()
+
+
+class AdminAddLoot(StatesGroup):
+    title = State()
+    reward_details = State()
+    eligibility = State()
+    steps = State()
+    expiry_date = State()
+    terms = State()
+    official_link = State()
+    confirm = State()
+
+
+class AdminAddNews(StatesGroup):
+    title = State()
+    content = State()
+    category = State()
+    app_name = State()
+    source = State()
+    confirm = State()
