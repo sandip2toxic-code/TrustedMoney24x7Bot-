@@ -33,6 +33,7 @@ async def start_app_promo(callback: CallbackQuery, state: FSMContext):
     app_type = type_map.get(callback.data)
 
     await state.update_data(app_type=app_type)
+    await state.update_data(cancel_return_to="promote_app")
     await state.set_state(PromoteApp.name)
 
     await callback.message.edit_text(
