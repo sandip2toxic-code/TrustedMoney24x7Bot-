@@ -9,6 +9,7 @@ from config import BOT_TOKEN
 from database import init_db
 from handlers import router as main_router
 from promote_handlers import router as promote_router
+from app_promote_handlers import router as app_promote_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,11 +20,9 @@ async def main():
         logger.error("BOT_TOKEN is missing! Please check your .env file.")
         return
 
-    # Initialize Database
     await init_db()
     logger.info("Database initialized successfully.")
 
-    # Bot & Dispatcher
     bot = Bot(
         token=BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
@@ -31,9 +30,10 @@ async def main():
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
-    # Register Routers
+    # Register all routers
     dp.include_router(main_router)
     dp.include_router(promote_router)
+    dp.include_router(app_promote_router)
 
     logger.info("Bot is starting...")
     await dp.start_polling(bot)
