@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
 import uuid
@@ -16,14 +16,14 @@ from sqlalchemy import select
 router = Router()
 
 
-# ====================== START ======================
 @router.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext):
+async def cmd_start(message: Message, state: FSMContext, command: CommandObject):
     await state.clear()
-    
+
     user_id = message.from_user.id
     first_name = message.from_user.first_name or ""
     username = message.from_user.username or ""
+    payload = (command.args or "").strip()
 
     async with async_session() as session:
         result = await session.execute(select(User).where(User.telegram_id == user_id))
@@ -31,14 +31,33 @@ async def cmd_start(message: Message, state: FSMContext):
 
         if not user:
             referral_code = str(user_id)[-6:] + str(uuid.uuid4())[:4]
-            new_user = User(
+            referred_by = None
+
+            if payload:
+                ref_result = await session.execute(
+                    select(User).where(User.referral_code == payload)
+                )
+                referrer = ref_result.scalar_one_or_none()
+                if referrer and referrer.telegram_id != user_id:
+                    referred_by = referrer.telegram_id
+                    referrer.referral_count += 1
+                    try:
+                        await message.bot.send_message(
+                            referrer.telegram_id,
+                            f"👥 New referral joined.\nYour referral count is now {referrer.referral_count}.",
+                        )
+                    except Exception:
+                        pass
+
+            user = User(
                 telegram_id=user_id,
                 first_name=first_name,
                 username=username,
                 referral_code=referral_code,
-                created_at=datetime.utcnow()
+                referred_by=referred_by,
+                created_at=datetime.utcnow(),
             )
-            session.add(new_user)
+            session.add(user)
             await session.commit()
 
     text = f"""
@@ -58,7 +77,6 @@ Please select an option from the menu below ⬇️
     await message.answer(text, reply_markup=main_menu_kb(), parse_mode="HTML")
 
 
-# ====================== MAIN MENU ======================
 @router.callback_query(F.data == "main_menu")
 async def show_main_menu(callback: CallbackQuery, state: FSMContext):
     await state.clear()
@@ -70,7 +88,6 @@ async def show_main_menu(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-# ====================== JOIN CHANNEL ======================
 @router.callback_query(F.data == "join_channel")
 async def join_channel(callback: CallbackQuery):
     text = f"""
@@ -108,7 +125,6 @@ async def verify_membership(callback: CallbackQuery):
         await callback.answer("❌ Verification failed. Please try again.", show_alert=True)
 
 
-# ====================== PROMOTE TELEGRAM ======================
 @router.callback_query(F.data == "promote_telegram")
 async def promote_telegram_menu(callback: CallbackQuery):
     text = """
@@ -120,7 +136,6 @@ Please select what you want to promote:
     await callback.answer()
 
 
-# ====================== PROMOTE APP ======================
 @router.callback_query(F.data == "promote_app")
 async def promote_app_menu(callback: CallbackQuery):
     text = """
@@ -132,7 +147,6 @@ Please select the type of app you want to promote:
     await callback.answer()
 
 
-# ====================== MY PROFILE ======================
 @router.callback_query(F.data == "my_profile")
 async def my_profile(callback: CallbackQuery):
     user_id = callback.from_user.id
@@ -145,6 +159,7 @@ async def my_profile(callback: CallbackQuery):
         await callback.answer("Profile not found", show_alert=True)
         return
 
+    link = f"https://t.me/TrustedMoney24x7Bot?start={user.referral_code}"
     text = f"""
 👤 <b>My Profile</b>
 
@@ -160,13 +175,18 @@ async def my_profile(callback: CallbackQuery):
 • Completed: {user.completed_orders}
 
 👥 Referral Count: {user.referral_count}
+🎁 Your referral link:
+{link}
+
+Share this link. A new user's first visit increases your count by 1.
+No cash is paid automatically.
+
 ✅ Joined Channel: {'Yes' if user.joined_channel else 'No'}
 """
     await callback.message.edit_text(text, reply_markup=back_home_kb(), parse_mode="HTML")
     await callback.answer()
 
 
-# ====================== CONTACT SUPPORT ======================
 @router.callback_query(F.data == "contact_support")
 async def contact_support(callback: CallbackQuery):
     text = f"""
@@ -185,7 +205,6 @@ You can contact us for:
     await callback.answer()
 
 
-# ====================== ADMIN PANEL ======================
 @router.message(Command("admin"))
 async def admin_panel(message: Message):
     if message.from_user.id != OWNER_ID:
@@ -199,7 +218,6 @@ async def admin_panel(message: Message):
     )
 
 
-# ====================== CANCEL ======================
 @router.callback_query(F.data == "cancel")
 async def cancel_handler(callback: CallbackQuery, state: FSMContext):
     await state.clear()
