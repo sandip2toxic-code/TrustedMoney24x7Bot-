@@ -103,7 +103,6 @@ async def cmd_start(
                     referrer.referral_count
                 )
 
-            # Save registration and referral count together
             await session.commit()
 
     # Notify referrer after successful database commit
@@ -150,7 +149,7 @@ Please select an option from the menu below ⬇️
 
 
 # =====================================================
-# MAIN MENU
+# MAIN MENU - FAST BACK BUTTON
 # =====================================================
 
 @router.callback_query(F.data == "main_menu")
@@ -158,8 +157,13 @@ async def show_main_menu(
     callback: CallbackQuery,
     state: FSMContext
 ):
+    # Answer callback immediately to stop Telegram loading
+    await callback.answer()
+
+    # Clear current state
     await state.clear()
 
+    # Show main menu
     await callback.message.edit_text(
         f"🏠 <b>Main Menu</b>\n\n"
         f"Welcome to {html.escape(BOT_NAME)}!\n"
@@ -168,8 +172,6 @@ async def show_main_menu(
         parse_mode="HTML"
     )
 
-    await callback.answer()
-
 
 # =====================================================
 # JOIN OFFICIAL CHANNEL
@@ -177,6 +179,8 @@ async def show_main_menu(
 
 @router.callback_query(F.data == "join_channel")
 async def join_channel(callback: CallbackQuery):
+
+    await callback.answer()
 
     text = f"""
 📢 <b>Join Official Channel</b>
@@ -192,8 +196,6 @@ Please join the channel and then click the
         reply_markup=join_channel_kb(),
         parse_mode="HTML"
     )
-
-    await callback.answer()
 
 
 # =====================================================
@@ -234,6 +236,8 @@ async def verify_membership(callback: CallbackQuery):
                 parse_mode="HTML"
             )
 
+            await callback.answer()
+
         else:
             await callback.answer(
                 "❌ You have not joined the channel yet!",
@@ -254,6 +258,8 @@ async def verify_membership(callback: CallbackQuery):
 @router.callback_query(F.data == "promote_telegram")
 async def promote_telegram_menu(callback: CallbackQuery):
 
+    await callback.answer()
+
     text = """
 📣 <b>Promote Your Channel / Group / Bot</b>
 
@@ -266,8 +272,6 @@ Please select what you want to promote:
         parse_mode="HTML"
     )
 
-    await callback.answer()
-
 
 # =====================================================
 # APP PROMOTION MENU
@@ -275,6 +279,8 @@ Please select what you want to promote:
 
 @router.callback_query(F.data == "promote_app")
 async def promote_app_menu(callback: CallbackQuery):
+
+    await callback.answer()
 
     text = """
 📱 <b>Promote Your App</b>
@@ -288,8 +294,6 @@ Please select the type of app you want to promote:
         parse_mode="HTML"
     )
 
-    await callback.answer()
-
 
 # =====================================================
 # MY PROFILE + REFERRAL LINK
@@ -297,6 +301,8 @@ Please select the type of app you want to promote:
 
 @router.callback_query(F.data == "my_profile")
 async def my_profile(callback: CallbackQuery):
+
+    await callback.answer()
 
     user_id = callback.from_user.id
 
@@ -309,10 +315,7 @@ async def my_profile(callback: CallbackQuery):
         user = result.scalar_one_or_none()
 
     if not user:
-        await callback.answer(
-            "Profile not found",
-            show_alert=True
-        )
+        await callback.message.answer("Profile not found")
         return
 
     bot_username = BOT_USERNAME.lstrip("@")
@@ -361,8 +364,6 @@ No cash is paid automatically.
         parse_mode="HTML"
     )
 
-    await callback.answer()
-
 
 # =====================================================
 # CONTACT SUPPORT
@@ -370,6 +371,8 @@ No cash is paid automatically.
 
 @router.callback_query(F.data == "contact_support")
 async def contact_support(callback: CallbackQuery):
+
+    await callback.answer()
 
     text = f"""
 📞 <b>Contact Support</b>
@@ -389,8 +392,6 @@ You can contact us for:
         reply_markup=back_home_kb(),
         parse_mode="HTML"
     )
-
-    await callback.answer()
 
 
 # =====================================================
@@ -425,13 +426,13 @@ async def cancel_handler(
     state: FSMContext
 ):
 
+    await callback.answer()
+
     await state.clear()
 
     await callback.message.edit_text(
         "❌ Cancelled.\n\nReturning to Main Menu:",
         reply_markup=main_menu_kb(),
         parse_mode="HTML"
-    )
-
-    await callback.answer()
-                             
+                              )
+                       
